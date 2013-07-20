@@ -1,0 +1,10 @@
+*.pyc
+bin
+build
+include
+lib
+lib64
+photos
+share
+stats
+subsamples

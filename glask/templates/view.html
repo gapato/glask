@@ -1,0 +1,39 @@
+{% extends "layout.html" %}
+
+{% block navbar %}
+<span id="navbar">&raquo; <a href="{{ url_for('tree') }}">Photos</a>{{ prefix|tobc }} &rsaquo; {{ pic }}</span>
+{% endblock %}
+
+{%- block body %}
+<div id="pics_list">
+    {%- if previous %}
+    <a href="{{ url_for('view', path=join(prefix, previous)) }}"><span class="view_nav nav_left">&lsaquo;</span></a>
+    {% endif %}
+    <span class="view_img_ph">
+        <img alt="{{pic}}" src="{{ url_for('picture', size='hi', path=join(prefix, pic)) }}">
+        {% if config['LINK_ORIGINALS'] or config['GEXIV_SUPPORT'] %}
+        <span class="view_img_info"><span>
+            {% if config['LINK_ORIGINALS'] %}
+            <a href="{{ url_for('picture', size='original', path=join(prefix, pic)) }}" class="muted">
+                <span class="view_info_zoom">+</span>
+                Original
+            </a>
+            {% endif %}
+            {% if config['GEXIV_SUPPORT'] %}
+            <span class="right">
+                {{ meta['time'].strftime('%d/%m/%Y') }}
+            </span>
+            <span class="exif right">
+                {% if meta['fnumber'] %}<span title="aperture">{{ meta['fnumber'] }}</span>{% endif %}
+                {% if meta['expo'] %}<span title="exposure time">{{ meta['expo'] }}s</span>{% endif %}
+                {% if meta['focal'] %}<span title="focal length">{{ meta['focal'] }}mm</span>{% endif %}
+            </span>
+            {% endif %}
+        </span></span>
+        {% endif %}
+    </span>
+    {%- if next %}
+    <a href="{{ url_for('view', path=join(prefix, next)) }}"><span class="view_nav nav_right">&rsaquo;</span></a>
+    {% endif %}
+</div>
+{%- endblock %}

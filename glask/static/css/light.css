@@ -1,0 +1,54 @@
+body
+{ background-color: #ddd; }
+
+a
+{ color: #449; }
+
+hr
+{ background-color: #888; }
+
+div#headbar
+{ border-bottom: 3px solid #888;
+  background-color: #ddd; color: #333; }
+
+div.album:hover
+{ background-color: #CCC; }
+
+.fancybox img
+{ background-color: black; }
+
+span.list_img_ph
+{ box-shadow: 0 2px 10px #444; }
+
+span.list_img_ph:hover
+{ box-shadow: 0 5px 10px black; }
+
+span#glask_label
+{ color: #888; }
+
+span.view_img_ph img
+{ box-shadow: 0 0 20px black; }
+
+span.view_img_info
+{ background-color: #eee;
+  color: #CCC; }
+
+span.view_info_zoom
+{ background-color: #CCC;
+  color: black; }
+
+span.exif
+{ color: #888; }
+
+span.view_nav
+{ color: #777; }
+
+span.view_nav:hover
+{ color: #66F; }
+
+a.dl_link
+{ background-color: #AAF;
+  border-left: 0.9em solid #AAF;
+  border-top: 0.9em solid #AAF;
+  border-bottom: 1px solid #AAF;
+  border-right: 1px solid #AAF; }

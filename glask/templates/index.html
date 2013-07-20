@@ -1,0 +1,58 @@
+{% extends "layout.html" %}
+
+{% block navbar %}
+        <span class="breadcrumbs">
+            &raquo; <a href="{{ url_for('tree') }}">Photos</a> {{ prefix|tobc }}
+        </span>
+        <span class="download">
+        {% if config['SERVE_ALBUMS_ARCHIVE'] %}
+            <a href="{{ url_for('download', path=join(prefix)) }}"><i>Télécharger</i></a>
+        {% endif %}
+        </span>
+{% endblock %}
+{% block script %}
+    {% if config['USE_FANCYBOX'] %}
+    <script type="text/javascript">
+        $(document).ready(function() {
+            $(".fancybox").fancybox({
+                openEffect  : 'none',
+                closeEffect : 'none',
+                nextEffect  : 'none',
+                prevEffect  : 'none',
+                loop        : false
+            });
+        });
+    </script>
+    {% endif %}
+{% endblock %}
+
+{% block body %}
+    {% for d in dirs %}
+    <div class="album">
+        <a href="{{ url_for('tree', path=join(prefix, d)) }}" class="muted">
+        <span class="album_images">
+            {% for s in samples[d] -%}<span class="album_img_ph"><img alt="{{s}}" class="sample_{{loop.index}}" src="{{ url_for('picture', size='tiny', path=s) }}"></span>{% endfor -%}</span><span class="album_title_ph"><div class="album_title">{{ d }}</div></span></a>
+    </div>
+    {% endfor %}
+    {% if pics|length > 0 and dirs|length > 0%}
+    <hr>
+    {% endif %}
+    <div id="pics_list">
+    {% for p in pics -%}
+    {% if config['USE_FANCYBOX'] -%}
+    {% set url = url_for('picture', size='hi', path=join(prefix,p)) %}
+    {% else %}
+    {% set url = url_for('view', path=join(prefix,p)) %}
+    {% endif -%}
+    <span class="list_img_ph">
+        <a class="fancybox" rel="fb_gallery" href="{{ url }}" title="{{ pic_titles[p] }}">
+            <img alt="{{p}}" src="{{ url_for('picture', size='lo', path=join(prefix,p)) }}">
+        </a>
+        {% if config['LINK_ORIGINALS'] %}
+        <a class="dl_link" href="{{ url_for('picture', size='original', path=join(prefix, p)) }}">
+        <img alt="DL" src="{{ url_for('static', filename='img/glyphicons_200_download.png') }}"></a>
+        {% endif %}
+    </span>
+    {% endfor -%}
+    </div>
+{% endblock %}

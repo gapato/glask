@@ -1,0 +1,157 @@
+#!bin/python
+import argparse, re
+from os import walk, remove
+from os.path import normpath, isdir, isfile, relpath, join, abspath
+from shutil import rmtree
+from sys import stderr, stdout, argv
+
+from glask.common import prepare_subsample, subsample_paths, filter_pics, is_picture, config
+
+def _prompt(msg):
+    p = u'{0} (y/n): '.format(msg)
+    while True:
+        stdout.write(p.encode('utf-8'))
+        r = raw_input()
+        if r == 'y' or r == 'Y':
+            return True
+        elif r == 'n' or r == 'n':
+            return False
+        stdout.write('\n')
+
+def _list_orphans():
+    md5s = []
+    orphans = []
+    old_md5 = ''
+    tree = walk(config.PICS_DIR)
+    try:
+        while True:
+            (cdir, dirs, files) = tree.next()
+            pics = filter_pics(files)
+            relative_path = relpath(cdir, start=config.PICS_DIR)
+            for p in pics:
+                (src_file, dst_dir, dst_file) = subsample_paths(relative_path, p)
+                md5s.append(dst_file[:32])
+    except StopIteration:
+        pass
+    tree.close()
+    tree = walk(config.SUBS_DIR)
+    pattern = re.compile("""^([a-z0-9]{32}).(hi|lo).jpg$""")
+    try:
+        while True:
+            (cdir, dirs, thumbs) = tree.next()
+            thumbs.sort()
+            for t in thumbs:
+                md5 = pattern.match(t)
+                if md5:
+                    new_md5 = md5.group(1)
+                    if old_md5 != new_md5:
+                        if new_md5 not in md5s:
+                            orphans.append(new_md5)
+                        else:
+                            md5s.remove(new_md5)
+                    old_md5 = new_md5
+    except StopIteration:
+        pass
+    return orphans
+
+def _prune():
+    orphans = _list_orphans()
+    for o in orphans:
+        prefix = o[:2]
+        for s in config.SUBSAMPLES_GEOM.keys():
+            filename = join(config.SUBS_DIR, prefix, '{0}.{1}.jpg'.format(o, s))
+            if isfile(filename):
+                stdout.write('removing {0}\n'.format(filename))
+                remove(filename)
+
+def resize_pic(prefix, pic, keep_old=True):
+    stdout.write((u'[info] Resizing {0}\n'.format(join(prefix, pic))).encode('utf-8'))
+    (src_file, dst_dir, dst_file) = subsample_paths(prefix, pic)
+    first = False
+    prepare_subsample(src_file, dst_dir, dst_file,
+                      config.SUBSAMPLES_GEOM.keys(), force=not keep_old)
+
+def rebuild_dir(path, keep_old=True):
+    fixed_path = normpath(path)
+    if not (fixed_path.startswith(config.PICS_DIR)
+            and isdir(fixed_path)):
+        stderr.write('Directory not found, abort')
+        exit(1)
+    relative_path = relpath(fixed_path, start=config.PICS_DIR)
+    tree = walk(fixed_path)
+    while True:
+        try:
+            (cdir, dirs, files) = tree.next()
+            relative_path = relpath(cdir, start=config.PICS_DIR)
+            pics = filter_pics(files)
+            for p in pics:
+                resize_pic(relative_path, p, keep_old=keep_old)
+        except StopIteration:
+            break
+
+parser = argparse.ArgumentParser(description='Freeze or rebuild part of the glask gallery.')
+parser.add_argument('action', choices=['freeze', 'thumbs', 'orphans', 'prune', 'help'],
+                    type=str, nargs=1, help='the action to perform, see %(prog)s help <action>')
+parser.add_argument('--clean', '-c', dest='clean', action='store_true', help='remove old data before freezing/rebuilding')
+parser.add_argument('path', type=unicode, nargs='*', help='the files or directories for which to rebuild thumbnails')
+
+args = parser.parse_args()
+action = args.action[0]
+if action == 'freeze':
+    if len(args.path) > 0:
+        stderr.write('[error] Partial (re)freezing is not supported yet.\n \
+       Freezing over an existing directory should keep existing files.\n')
+        exit(1)
+    from glask.app import create_app
+    from flask_frozen import Freezer
+    app = create_app()
+    dst = app.config['FREEZER_DESTINATION']
+    options_str = ''
+    if args.clean:
+        if _prompt(u'Overwrite "{0}"?'.format(dst)):
+            rmtree(dst)
+            options_str = ' [forced]'
+    stdout.write(('[info] Starting freeze{0}\n'.format(options_str)).encode('utf-8'))
+    stdout.write((u'       destination: {0}\n'.format(dst)).encode('utf-8'))
+    stdout.write((u'       base url   : {0}\n'.format(app.config['FREEZER_BASE_URL'])).encode('utf-8'))
+    freezer = Freezer(app)
+    freezer.freeze()
+
+elif action == 'thumbs':
+    if len(args.path) == 0:
+        args.path.append(config.PICS_DIR)
+    for p in args.path:
+        if is_picture(p):
+            stderr.write('[warning] Cannot handle single files yet\n')
+            pass
+        else:
+            stdout.write(('[info] Rebuilding directory "{0}"\n'.format(p)).encode('utf-8'))
+            rebuild_dir(p, keep_old=not args.clean)
+            stdout.write(('[info] Pruning orphans thumbnails\n'))
+            _prune()
+
+elif action == 'orphans':
+    orphans = _list_orphans()
+    for o in orphans:
+        stdout.write('{0}\n'.format(o))
+
+elif action == 'prune':
+    _prune()
+
+elif action == 'help':
+    if len(args.path) > 0:
+        action = args.path[0]
+        if action == 'freeze':
+            stdout.write('{0}: create a static version of the gallery,\n\
+        using the `build` directory by default\n'.format(action))
+            exit(0)
+        elif action == 'thumbs':
+            stdout.write('{0} [path [path ...]]: create missing thumbnails\n'.format(action))
+            exit(0)
+        elif action == 'orphans':
+            stdout.write('{0}: list thumbnails that have no more parent picture\n'.format(action))
+            exit(0)
+        elif action == 'prune':
+            stdout.write('{0}: remove thumbnails that have no more parent picture\n'.format(action))
+            exit(0)
+    parser.print_help()
